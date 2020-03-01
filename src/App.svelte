@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from "svelte";
   const FIELD_SIZE = 7;
 
   let pfield = Array.from({ length: FIELD_SIZE }).map(_ =>
@@ -29,6 +30,28 @@
     TEEWEE,
     SMASHBOY
   ];
+
+  onMount(_ => {
+    document.addEventListener("keydown", ({ keyCode }) => {
+      const keyHandlers = {
+        32: _ => onRotate(),
+        37: _ => move("left"),
+        39: _ => move("right")
+      };
+      keyHandlers[keyCode] && keyHandlers[keyCode]();
+    });
+  });
+
+  const reverse = array => [...array].reverse();
+  const compose = (a, b) => x => a(b(x));
+
+  const flipMatrix = matrix =>
+    matrix[0].map((column, index) => matrix.map(row => row[index]));
+
+  const rotateMatrix = compose(
+    flipMatrix,
+    reverse
+  );
 
   const getRandomIntBetween = (min, max) => {
     // min and max included
@@ -95,12 +118,19 @@
     isIterationStarted = true;
     startCoords = getRandomStartCoords(figure);
     drawFigure({ figure, ...startCoords });
-    reduceHeight(figure, 500);
+    reduceHeight(figure, 1000);
   };
 
-  const onStop = _ => {
-    iterationTimer && clearInterval(iterationTimer);
-    isGameStarted = false;
+  const onRotate = _ => {
+    const rotatedFigure = rotateMatrix(currentFigure);
+    clearTempCols();
+    clearInterval(iterationTimer);
+    clearInterval(iterationTimer);
+
+    drawFigure({ figure: rotatedFigure, ...startCoords });
+    reduceHeight(rotatedFigure);
+
+    currentFigure = rotatedFigure;
   };
 
   const isDeadEnd = coords => {
@@ -234,7 +264,7 @@
   </article>
 
   <button on:click={_ => move('left')}>left</button>
-  <button on:click={onStop}>rotate</button>
+  <button on:click={onRotate}>rotate</button>
   <button on:click={_ => move('right')}>right</button>
 
 </main>
