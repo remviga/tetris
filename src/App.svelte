@@ -1,48 +1,38 @@
 <script>
-  import { onMount } from "svelte";
-  const FIELD_SIZE = 7;
-
+  import { onMount, onDestroy } from "svelte";
+  const FIELD_SIZE = 8;
   let pfield = Array.from({ length: FIELD_SIZE }).map(_ =>
     Array.from({ length: FIELD_SIZE }).map((_, i) => 0)
   );
-
-  //toggle to start
   let isGameStarted = true;
-  //
-
   let startCoords = { x: 0, y: 0 };
   let currentFigure = [];
   let isIterationStarted = false;
   let iterationTimer = null;
 
-  const BLUE_RICKY = [[1, 0, 0], [1, 1, 1]];
-  const ORANGE_RICKY = [[0, 0, 1], [1, 1, 1]];
-  const CLEVELAND_Z = [[1, 1, 0], [0, 1, 1]];
-  const RHODE_ISLAND = [[0, 1, 1], [1, 1, 0]];
-  const HERO = [[1, 1, 1]];
-  const TEEWEE = [[0, 1, 0], [1, 1, 1]];
-  const SMASHBOY = [[1]];
+  const FIGURES = {
+    BLUE_RICKY: [[1, 0, 0], [1, 1, 1]],
+    ORANGE_RICKY: [[0, 0, 1], [1, 1, 1]],
+    CLEVELAND_Z: [[1, 1, 0], [0, 1, 1]],
+    RHODE_ISLAND: [[0, 1, 1], [1, 1, 0]],
+    HERO: [[1, 1, 1]],
+    TEEWEE: [[0, 1, 0], [1, 1, 1]],
+    SMASHBOY: [[1]]
+  };
 
-  const FIGURES = [
-    BLUE_RICKY,
-    ORANGE_RICKY,
-    CLEVELAND_Z,
-    RHODE_ISLAND,
-    HERO,
-    TEEWEE,
-    SMASHBOY
-  ];
+  onMount(_ => document.addEventListener("keydown", handleKeyPress));
+  onDestroy(_ => document.removeEventListener("keydown", handleKeyPress));
 
-  onMount(_ => {
-    document.addEventListener("keydown", ({ keyCode }) => {
-      const keyHandlers = {
-        32: _ => onRotate(),
-        37: _ => move("left"),
-        39: _ => move("right")
-      };
-      keyHandlers[keyCode] && keyHandlers[keyCode]();
-    });
-  });
+  const handleKeyPress = ({ keyCode }) => {
+    const keyHandlers = {
+      32: _ => onRotate(),
+      37: _ => move("left"),
+      39: _ => move("right"),
+      40: _ => move("down")
+    };
+    keyHandlers[keyCode] && isGameStarted && keyHandlers[keyCode]();
+  };
+
   const isTempCol = col => typeof col === "string";
   const reverse = array => [...array].reverse();
   const compose = (a, b) => x => a(b(x));
@@ -59,7 +49,9 @@
   };
 
   const getRandomFigure = _ => {
-    return FIGURES[getRandomIntBetween(0, FIGURES.length - 1)];
+    return Object.values(FIGURES)[
+      getRandomIntBetween(0, Object.values(FIGURES).length - 1)
+    ];
   };
 
   const clearLine = i => {
@@ -99,19 +91,13 @@
     return coords;
   };
 
+  // set fixed all completed cols
   const getSnapshotOfField = _ => {
     return pfield.map(row => row.map(c => (isTempCol(c) ? +c : c)));
   };
 
   const reduceHeight = (figure = currentFigure, speed = 1000) => {
-    iterationTimer = setInterval(_ => {
-      startCoords = { ...startCoords, y: startCoords.y += 1 };
-      clearTempCols();
-      drawFigure({
-        figure,
-        ...startCoords
-      });
-    }, speed);
+    iterationTimer = setInterval(_ => move("down"), speed);
   };
 
   const dropNewPeiceOfField = figure => {
@@ -119,12 +105,25 @@
     startCoords = getRandomStartCoords(figure);
     currentFigure = figure;
     if (isDeadEnd(startCoords)) {
-      pfield[startCoords.y][startCoords.x] = 1;
+      drawFigure({ figure: [currentFigure[currentFigure.length-1]], ...startCoords });
       isGameStarted = false;
       return;
     }
     drawFigure({ figure: currentFigure, ...startCoords });
     reduceHeight(currentFigure, 1000);
+  };
+
+  const onStart = _ => {
+    clearField();
+    isGameStarted = true;
+  };
+
+  const onStop = _ => {
+    isGameStarted = false;
+    isIterationStarted = false;
+    clearInterval(iterationTimer);
+    currentFigure = [];
+    startCoords = { x: 0, y: 0 };
   };
 
   const onRotate = _ => {
@@ -133,10 +132,11 @@
     clearInterval(iterationTimer);
     reduceHeight(rotatedFigure);
     drawFigure({ figure: rotatedFigure, ...startCoords });
-
     currentFigure = rotatedFigure;
   };
 
+  /* check if there are no way to reduce height 
+	between figure and bottom edge of field */
   const isDeadEnd = coords => {
     const hasNotEmptyNextRow = (currentRow, nextFieldRow) => {
       return nextFieldRow.some(
@@ -190,30 +190,45 @@
     startCoords = newCoords;
   };
 
+  const moveDown = _ => {
+    const moveIsAllowed = ({ x, y }, f) => y < pfield.length - f.length;
+    const newCoords = {
+      ...startCoords,
+      y: moveIsAllowed(startCoords, currentFigure)
+        ? startCoords.y + 1
+        : startCoords.y
+    };
+    drawFigure({ figure: currentFigure, ...newCoords });
+    startCoords = newCoords;
+  };
+
   const clearTempCols = _ => {
     pfield = pfield.map(r => {
       return r.map(c => (c && isTempCol(c) ? 0 : c));
     });
   };
 
+  //"move figure" handler
   const move = direction => {
     clearTempCols();
     const dirs = {
       left: moveLeft,
-      right: moveRight
+      right: moveRight,
+      down: moveDown
     };
     if (!dirs[direction] || !isIterationStarted) return;
     dirs[direction]();
   };
 
   $: {
+    //starting new iteration
     if (isGameStarted && !isIterationStarted) {
-      // currentFigure = getRandomFigure();
-      currentFigure = HERO;
+      currentFigure = getRandomFigure();
       dropNewPeiceOfField(currentFigure);
     }
   }
   $: {
+    //completing current iteration
     if (isDeadEnd(startCoords)) {
       clearInterval(iterationTimer);
       pfield = getSnapshotOfField();
@@ -221,12 +236,14 @@
     }
   }
   $: {
+    //checking if need to abort game
     if (pfield[0].some(c => c) && !isIterationStarted) {
       isGameStarted = false;
       console.log("GAME OVER");
     }
   }
   $: {
+    //replacing fully-contained rows
     if (!isIterationStarted) {
       pfield = pfield.map(r =>
         r.every(c => c && !isTempCol(c)) ? r.map(c => 0) : r
@@ -244,6 +261,9 @@
 </script>
 
 <style>
+  :root {
+    font-size: 16px;
+  }
   main {
     text-align: center;
     padding: 1em;
@@ -260,8 +280,8 @@
   }
   .col {
     position: relative;
-    width: 50px;
-    height: 50px;
+    width: 3.125rem;
+    height: 3.125rem;
     margin-right: 2px;
     background: lightgray;
     display: flex;
@@ -278,9 +298,9 @@
 
 <main>
   <article>
-    {#each pfield as row, ri}
+    {#each pfield as row}
       <section class="row">
-        {#each row as col, ci}
+        {#each row as col}
           <section class="col" class:active={col} />
         {/each}
       </section>
@@ -292,7 +312,8 @@
   <button on:click={_ => move('right')}>right</button>
 
   <div>
-    <button on:click={_ => (isGameStarted = false)}>stop</button>
+    <button on:click={onStop}>stop</button>
+    <button on:click={onStart}>start</button>
   </div>
 
 </main>
