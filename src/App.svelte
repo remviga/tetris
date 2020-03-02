@@ -1,13 +1,18 @@
 <script>
+	// TODO: fix rotate near the edge bug
+	// TODO: fix last draw before game over
+
   import { onMount, onDestroy } from "svelte";
   const FIELD_SIZE = 8;
+
   let pfield = Array.from({ length: FIELD_SIZE }).map(_ =>
     Array.from({ length: FIELD_SIZE }).map((_, i) => 0)
   );
-  let isGameStarted = true;
+
+  let isGameStarted = false;
+  let isIterationStarted = false;
   let startCoords = { x: 0, y: 0 };
   let currentFigure = [];
-  let isIterationStarted = false;
   let iterationTimer = null;
 
   const FIGURES = {
@@ -27,6 +32,7 @@
     const keyHandlers = {
       32: _ => onRotate(),
       37: _ => move("left"),
+      38: _ => onRotate(),
       39: _ => move("right"),
       40: _ => move("down")
     };
@@ -105,7 +111,10 @@
     startCoords = getRandomStartCoords(figure);
     currentFigure = figure;
     if (isDeadEnd(startCoords)) {
-      drawFigure({ figure: [currentFigure[currentFigure.length-1]], ...startCoords });
+      drawFigure({
+        figure: [currentFigure[currentFigure.length - 1]],
+        ...startCoords
+      });
       isGameStarted = false;
       return;
     }
