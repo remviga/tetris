@@ -5,9 +5,11 @@
   let pfield = Array.from({ length: FIELD_SIZE }).map(_ =>
     Array.from({ length: FIELD_SIZE }).map((_, i) => 0)
   );
+
   //toggle to start
   let isGameStarted = true;
   //
+
   let startCoords = { x: 0, y: 0 };
   let currentFigure = [];
   let isIterationStarted = false;
@@ -41,13 +43,11 @@
       keyHandlers[keyCode] && keyHandlers[keyCode]();
     });
   });
-
+  const isTempCol = col => typeof col === "string";
   const reverse = array => [...array].reverse();
   const compose = (a, b) => x => a(b(x));
-
   const flipMatrix = matrix =>
     matrix[0].map((column, index) => matrix.map(row => row[index]));
-
   const rotateMatrix = compose(
     flipMatrix,
     reverse
@@ -82,7 +82,7 @@
           ? c
           : row[ci - x]
           ? row[ci - x] + ""
-          : typeof c === "string"
+          : isTempCol(c)
           ? row[ci - x]
           : c;
         return resultRow;
@@ -100,10 +100,10 @@
   };
 
   const getSnapshotOfField = _ => {
-    return pfield.map(row => row.map(c => (typeof c === "string" ? +c : c)));
+    return pfield.map(row => row.map(c => (isTempCol(c) ? +c : c)));
   };
 
-  const reduceHeight = (figure, speed = 1000) => {
+  const reduceHeight = (figure = currentFigure, speed = 1000) => {
     iterationTimer = setInterval(_ => {
       startCoords = { ...startCoords, y: startCoords.y += 1 };
       clearTempCols();
@@ -117,18 +117,17 @@
   const dropNewPeiceOfField = figure => {
     isIterationStarted = true;
     startCoords = getRandomStartCoords(figure);
-    drawFigure({ figure, ...startCoords });
-    reduceHeight(figure, 1000);
+    currentFigure = figure;
+    drawFigure({ figure: currentFigure, ...startCoords });
+    reduceHeight(currentFigure, 1000);
   };
 
   const onRotate = _ => {
     const rotatedFigure = rotateMatrix(currentFigure);
     clearTempCols();
     clearInterval(iterationTimer);
-    clearInterval(iterationTimer);
-
-    drawFigure({ figure: rotatedFigure, ...startCoords });
     reduceHeight(rotatedFigure);
+    drawFigure({ figure: rotatedFigure, ...startCoords });
 
     currentFigure = rotatedFigure;
   };
@@ -136,7 +135,7 @@
   const isDeadEnd = coords => {
     const hasNotEmptyNextRow = (currentRow, nextFieldRow) => {
       return nextFieldRow.some(
-        (c, ci) => c && typeof c !== "string" && currentRow[ci - coords.x]
+        (c, ci) => c && !isTempCol(c) && currentRow[ci - coords.x]
       );
     };
     const isBottomOfFiled = coords.y >= pfield.length - currentFigure.length;
@@ -149,21 +148,38 @@
   };
 
   const moveLeft = _ => {
+    const moveIsAllowed = ({ x, y }, f) => {
+      const isLeftEdgeOfField = !x;
+      const isReservedCols = f.some((r, ri) => {
+        const leftCol = pfield[y + ri][x - 1];
+        return leftCol && !isTempCol(leftCol);
+      });
+      return !isLeftEdgeOfField && !isReservedCols;
+    };
     const newCoords = {
       ...startCoords,
-      x: !startCoords.x ? 0 : startCoords.x - 1
+      x: moveIsAllowed(startCoords, currentFigure)
+        ? startCoords.x - 1
+        : startCoords.x
     };
     drawFigure({ figure: currentFigure, ...newCoords });
     startCoords = newCoords;
   };
 
   const moveRight = _ => {
+    const moveIsAllowed = ({ x, y }, f) => {
+      const isRightEdgeOfField = x >= pfield.length - f[0].length;
+      const isReservedCols = f.some((r, ri) => {
+        const rightCol = pfield[y + ri][x + r.length];
+        return rightCol && !isTempCol(rightCol);
+      });
+      return !isRightEdgeOfField && !isReservedCols;
+    };
     const newCoords = {
       ...startCoords,
-      x:
-        startCoords.x >= pfield.length - currentFigure[0].length
-          ? startCoords.x
-          : startCoords.x + 1
+      x: moveIsAllowed(startCoords, currentFigure)
+        ? startCoords.x + 1
+        : startCoords.x
     };
     drawFigure({ figure: currentFigure, ...newCoords });
     startCoords = newCoords;
@@ -171,7 +187,7 @@
 
   const clearTempCols = _ => {
     pfield = pfield.map(r => {
-      return r.map(c => (c && typeof c === "string" ? 0 : c));
+      return r.map(c => (c && isTempCol(c) ? 0 : c));
     });
   };
 
@@ -199,10 +215,7 @@
     }
   }
   $: {
-    if (
-      pfield[0].some(c => c && typeof c !== "string") &&
-      !isIterationStarted
-    ) {
+    if (pfield[0].some(c => c && !isTempCol(c)) && !isIterationStarted) {
       isGameStarted = false;
       console.log("GAME OVER");
     }
@@ -210,7 +223,7 @@
   $: {
     if (!isIterationStarted) {
       const indexOfContainedRow = pfield.findIndex(r =>
-        r.every(c => c && typeof c !== "string")
+        r.every(c => c && !isTempCol(c))
       );
       if (indexOfContainedRow !== -1) {
         pfield[indexOfContainedRow] = pfield[indexOfContainedRow].map(_ => 0);
@@ -266,5 +279,9 @@
   <button on:click={_ => move('left')}>left</button>
   <button on:click={onRotate}>rotate</button>
   <button on:click={_ => move('right')}>right</button>
+
+  <div>
+    <button on:click={_ => (isGameStarted = false)}>stop</button>
+  </div>
 
 </main>
