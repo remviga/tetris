@@ -81,7 +81,7 @@
         const resultRow = isRestOfSections
           ? c
           : row[ci - x]
-          ? row[ci - x] + ""
+          ? "1"
           : isTempCol(c)
           ? row[ci - x]
           : c;
@@ -118,6 +118,11 @@
     isIterationStarted = true;
     startCoords = getRandomStartCoords(figure);
     currentFigure = figure;
+    if (isDeadEnd(startCoords)) {
+      pfield[startCoords.y][startCoords.x] = 1;
+      isGameStarted = false;
+      return;
+    }
     drawFigure({ figure: currentFigure, ...startCoords });
     reduceHeight(currentFigure, 1000);
   };
@@ -203,7 +208,8 @@
 
   $: {
     if (isGameStarted && !isIterationStarted) {
-      currentFigure = getRandomFigure();
+      // currentFigure = getRandomFigure();
+      currentFigure = HERO;
       dropNewPeiceOfField(currentFigure);
     }
   }
@@ -215,19 +221,24 @@
     }
   }
   $: {
-    if (pfield[0].some(c => c && !isTempCol(c)) && !isIterationStarted) {
+    if (pfield[0].some(c => c) && !isIterationStarted) {
       isGameStarted = false;
       console.log("GAME OVER");
     }
   }
   $: {
     if (!isIterationStarted) {
-      const indexOfContainedRow = pfield.findIndex(r =>
-        r.every(c => c && !isTempCol(c))
+      pfield = pfield.map(r =>
+        r.every(c => c && !isTempCol(c)) ? r.map(c => 0) : r
       );
-      if (indexOfContainedRow !== -1) {
-        pfield[indexOfContainedRow] = pfield[indexOfContainedRow].map(_ => 0);
-      }
+      const newPField = [...pfield];
+      pfield.forEach((r, ri) => {
+        if (r.every(c => !c)) {
+          newPField.splice(ri, 1);
+          newPField.unshift(r);
+        }
+      });
+      pfield = newPField;
     }
   }
 </script>
