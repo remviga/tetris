@@ -1,6 +1,5 @@
 <script>
-	// TODO: fix rotate near the edge bug
-	// TODO: fix last draw before game over
+  // TODO: fix last draw before game over
 
   import { onMount, onDestroy } from "svelte";
   const FIELD_SIZE = 8;
@@ -9,7 +8,7 @@
     Array.from({ length: FIELD_SIZE }).map((_, i) => 0)
   );
 
-  let isGameStarted = false;
+  let isGameStarted = true;
   let isIterationStarted = false;
   let startCoords = { x: 0, y: 0 };
   let currentFigure = [];
@@ -136,11 +135,23 @@
   };
 
   const onRotate = _ => {
+    const { x } = startCoords;
+    const figureEdgeIndex = x + currentFigure.length;
+    const pfieldEdgeIndex = pfield.length;
+    if (figureEdgeIndex > pfieldEdgeIndex) {
+      startCoords = {
+        ...startCoords,
+        x: x - (figureEdgeIndex - pfieldEdgeIndex)
+      };
+    }
     const rotatedFigure = rotateMatrix(currentFigure);
     clearTempCols();
     clearInterval(iterationTimer);
     reduceHeight(rotatedFigure);
-    drawFigure({ figure: rotatedFigure, ...startCoords });
+    drawFigure({
+      figure: rotatedFigure,
+      ...startCoords
+    });
     currentFigure = rotatedFigure;
   };
 
@@ -233,6 +244,7 @@
     //starting new iteration
     if (isGameStarted && !isIterationStarted) {
       currentFigure = getRandomFigure();
+      // currentFigure = FIGURES["BLUE_RICKY"];
       dropNewPeiceOfField(currentFigure);
     }
   }
