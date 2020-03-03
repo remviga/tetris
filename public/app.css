@@ -1,0 +1,58 @@
+:root {
+  font-size: 16px;
+}
+main {
+  text-align: center;
+  padding: 1em;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.field {
+  position: relative;
+}
+.field-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: lightgray;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 10px;
+  background-color: lightgray;
+  border-radius: 3px;
+  margin: 5px 0;
+}
+.row {
+  position: relative;
+  display: inline-flex;
+  margin-bottom: 2px;
+}
+.row:last-child {
+  margin-bottom: 0;
+}
+.col {
+  position: relative;
+  width: 3.125rem;
+  height: 3.125rem;
+  margin-right: 2px;
+  background: lightgray;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.col.active {
+  background: red;
+}
+.col:last-child {
+  margin-right: 0;
+}

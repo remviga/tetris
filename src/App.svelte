@@ -1,74 +1,54 @@
 <script>
-  // TODO: fix last draw before game over
-
+  // TODO: fix last move before dead end
   import { onMount, onDestroy } from "svelte";
-  const FIELD_SIZE = 8;
+  import {
+    isTempCol,
+    rotateMatrix,
+    getRandomIntBetween,
+    getFieldBySize
+  } from "./helpers.js";
+  import FIGURES from "./figures.js";
 
-  let pfield = Array.from({ length: FIELD_SIZE }).map(_ =>
-    Array.from({ length: FIELD_SIZE }).map((_, i) => 0)
-  );
+  const FIELD_SIZE = 7;
+
+  let pfield = getFieldBySize(FIELD_SIZE);
 
   let isGameStarted = true;
+  let isGameOver = false;
   let isIterationStarted = false;
   let startCoords = { x: 0, y: 0 };
+  let speed;
   let currentFigure = [];
   let iterationTimer = null;
+  let isDrawingParts = false;
+  let indexOfDrawingRow = 1;
 
-  const FIGURES = {
-    BLUE_RICKY: [[1, 0, 0], [1, 1, 1]],
-    ORANGE_RICKY: [[0, 0, 1], [1, 1, 1]],
-    CLEVELAND_Z: [[1, 1, 0], [0, 1, 1]],
-    RHODE_ISLAND: [[0, 1, 1], [1, 1, 0]],
-    HERO: [[1, 1, 1]],
-    TEEWEE: [[0, 1, 0], [1, 1, 1]],
-    SMASHBOY: [[1]]
-  };
-
-  onMount(_ => document.addEventListener("keydown", handleKeyPress));
-  onDestroy(_ => document.removeEventListener("keydown", handleKeyPress));
+  let speedRatio = 1;
 
   const handleKeyPress = ({ keyCode }) => {
     const keyHandlers = {
       32: _ => onRotate(),
-      37: _ => move("left"),
+      37: _ => onMove("left"),
       38: _ => onRotate(),
-      39: _ => move("right"),
-      40: _ => move("down")
+      39: _ => onMove("right"),
+      40: _ => onMove("down")
     };
     keyHandlers[keyCode] && isGameStarted && keyHandlers[keyCode]();
   };
 
-  const isTempCol = col => typeof col === "string";
-  const reverse = array => [...array].reverse();
-  const compose = (a, b) => x => a(b(x));
-  const flipMatrix = matrix =>
-    matrix[0].map((column, index) => matrix.map(row => row[index]));
-  const rotateMatrix = compose(
-    flipMatrix,
-    reverse
-  );
-
-  const getRandomIntBetween = (min, max) => {
-    // min and max included
-    return Math.floor(Math.random() * (max - min + 1) + min);
-  };
+  onMount(_ => document.addEventListener("keydown", handleKeyPress));
+  onDestroy(_ => document.removeEventListener("keydown", handleKeyPress));
 
   const getRandomFigure = _ => {
     return Object.values(FIGURES)[
       getRandomIntBetween(0, Object.values(FIGURES).length - 1)
     ];
   };
-
-  const clearLine = i => {
+  const clearRow = i => {
     if (i < 0) return;
     pfield[i] = pfield[i].map(_ => 0);
   };
-
-  const clearField = _ => pfield.map((_, i) => clearLine(i));
-
-  const isEmptySection = (x, y) => {
-    return !pfield[y][x];
-  };
+  const clearField = _ => pfield.map((_, i) => clearRow(i));
 
   const drawFigure = ({ figure, x = 0, y = 0 }) => {
     figure.forEach((row, i) => {
@@ -101,29 +81,56 @@
     return pfield.map(row => row.map(c => (isTempCol(c) ? +c : c)));
   };
 
-  const reduceHeight = (figure = currentFigure, speed = 1000) => {
-    iterationTimer = setInterval(_ => move("down"), speed);
+  const reduceHeight = (figure = currentFigure) => {
+    iterationTimer = setInterval(_ => {
+      onMove("down");
+    }, speed);
   };
 
   const dropNewPeiceOfField = figure => {
+    let partsInterval = null;
     isIterationStarted = true;
+    indexOfDrawingRow = 1;
+    isDrawingParts = true;
     startCoords = getRandomStartCoords(figure);
     currentFigure = figure;
-    if (isDeadEnd(startCoords)) {
+    const drawInParts = count => {
+      const partialFigure = figure.slice(Math.max(figure.length - count, 0));
+      if (isDeadEnd(startCoords, partialFigure)) {
+        if (pfield[0].every(c => !c)) {
+          drawFigure({
+            figure: partialFigure,
+            ...startCoords
+          });
+        }
+        clearInterval(partsInterval);
+        isGameStarted = false;
+        isGameOver = true;
+
+        return;
+      }
       drawFigure({
-        figure: [currentFigure[currentFigure.length - 1]],
+        figure: partialFigure,
         ...startCoords
       });
-      isGameStarted = false;
-      return;
-    }
-    drawFigure({ figure: currentFigure, ...startCoords });
-    reduceHeight(currentFigure, 1000);
+    };
+    partsInterval = setInterval(_ => {
+      if (indexOfDrawingRow <= currentFigure.length - 1) {
+        drawInParts(indexOfDrawingRow);
+      } else {
+        isDrawingParts = false;
+        clearInterval(partsInterval);
+        drawFigure({ figure: currentFigure, ...startCoords });
+        reduceHeight(currentFigure);
+      }
+      indexOfDrawingRow += 1;
+    }, speed);
   };
 
   const onStart = _ => {
     clearField();
     isGameStarted = true;
+    isGameOver = false;
   };
 
   const onStop = _ => {
@@ -135,6 +142,7 @@
   };
 
   const onRotate = _ => {
+    if (isDrawingParts) return;
     const { x } = startCoords;
     const figureEdgeIndex = x + currentFigure.length;
     const pfieldEdgeIndex = pfield.length;
@@ -157,14 +165,14 @@
 
   /* check if there are no way to reduce height 
 	between figure and bottom edge of field */
-  const isDeadEnd = coords => {
+  const isDeadEnd = (coords, figure = currentFigure) => {
     const hasNotEmptyNextRow = (currentRow, nextFieldRow) => {
-      return nextFieldRow.some(
+      return !!nextFieldRow.find(
         (c, ci) => c && !isTempCol(c) && currentRow[ci - coords.x]
       );
     };
-    const isBottomOfFiled = coords.y >= pfield.length - currentFigure.length;
-    const isObstruction = currentFigure.some((figureRow, ri) => {
+    const isBottomOfFiled = coords.y >= pfield.length - figure.length;
+    const isObstruction = figure.some((figureRow, ri) => {
       const nextFieldRow = pfield[coords.y + ri + 1];
       if (!nextFieldRow) return true;
       return hasNotEmptyNextRow(figureRow, nextFieldRow);
@@ -176,7 +184,9 @@
     const moveIsAllowed = ({ x, y }, f) => {
       const isLeftEdgeOfField = !x;
       const isReservedCols = f.some((r, ri) => {
-        const leftCol = pfield[y + ri][x - 1];
+        const indexOfContainedCol =
+          r.indexOf(1) !== -1 ? r.indexOf(1) : r.length;
+        const leftCol = pfield[y + ri][x + indexOfContainedCol - 1];
         return leftCol && !isTempCol(leftCol);
       });
       return !isLeftEdgeOfField && !isReservedCols;
@@ -195,7 +205,9 @@
     const moveIsAllowed = ({ x, y }, f) => {
       const isRightEdgeOfField = x >= pfield.length - f[0].length;
       const isReservedCols = f.some((r, ri) => {
-        const rightCol = pfield[y + ri][x + r.length];
+        const indexOfContainedCol =
+          r.lastIndexOf(1) !== -1 ? r.lastIndexOf(1) : r.length;
+        const rightCol = pfield[y + ri][x + indexOfContainedCol + 1];
         return rightCol && !isTempCol(rightCol);
       });
       return !isRightEdgeOfField && !isReservedCols;
@@ -211,6 +223,7 @@
   };
 
   const moveDown = _ => {
+    const { y } = startCoords;
     const moveIsAllowed = ({ x, y }, f) => y < pfield.length - f.length;
     const newCoords = {
       ...startCoords,
@@ -229,13 +242,18 @@
   };
 
   //"move figure" handler
-  const move = direction => {
+  const onMove = direction => {
     clearTempCols();
+    if (isDrawingParts && direction === "down") {
+      indexOfDrawingRow += 1;
+      return;
+    }
     const dirs = {
       left: moveLeft,
       right: moveRight,
       down: moveDown
     };
+    // cachedMove = dirs[direction] && direction !== "down" ? direction : "";
     if (!dirs[direction] || !isIterationStarted) return;
     dirs[direction]();
   };
@@ -244,7 +262,6 @@
     //starting new iteration
     if (isGameStarted && !isIterationStarted) {
       currentFigure = getRandomFigure();
-      // currentFigure = FIGURES["BLUE_RICKY"];
       dropNewPeiceOfField(currentFigure);
     }
   }
@@ -260,7 +277,8 @@
     //checking if need to abort game
     if (pfield[0].some(c => c) && !isIterationStarted) {
       isGameStarted = false;
-      console.log("GAME OVER");
+      isGameOver = true;
+      // console.log("GAME OVER");
     }
   }
   $: {
@@ -279,46 +297,13 @@
       pfield = newPField;
     }
   }
+  $: {
+    speed = 1000 / speedRatio;
+  }
 </script>
 
-<style>
-  :root {
-    font-size: 16px;
-  }
-  main {
-    text-align: center;
-    padding: 1em;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-  .row {
-    position: relative;
-    display: inline-flex;
-    margin-bottom: 2px;
-  }
-  .row:last-child {
-    margin-bottom: 0;
-  }
-  .col {
-    position: relative;
-    width: 3.125rem;
-    height: 3.125rem;
-    margin-right: 2px;
-    background: lightgray;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .col.active {
-    background: red;
-  }
-  .col:last-child {
-    margin-right: 0;
-  }
-</style>
-
 <main>
-  <article>
+  <article class="field">
     {#each pfield as row}
       <section class="row">
         {#each row as col}
@@ -326,15 +311,28 @@
         {/each}
       </section>
     {/each}
+    {#if isGameOver}
+      <div class="field-overlay">
+        <h1>Game Over</h1>
+      </div>
+    {/if}
   </article>
-
-  <button on:click={_ => move('left')}>left</button>
-  <button on:click={onRotate}>rotate</button>
-  <button on:click={_ => move('right')}>right</button>
-
-  <div>
-    <button on:click={onStop}>stop</button>
-    <button on:click={onStart}>start</button>
+  <div class="option">
+    <button on:click={_ => onMove('left')}>left</button>
+    <button on:click={onRotate}>rotate</button>
+    <button on:click={_ => onMove('right')}>right</button>
+  </div>
+  <div class="option speed-option">
+    <label>
+      <span>Speed</span>
+      <input type="range" min="1" max="3" bind:value={speedRatio} />
+      <span>{speedRatio}</span>
+    </label>
+  </div>
+  <div class="option">
+    <button on:click={isGameStarted ? onStop : onStart}>
+      {isGameStarted ? 'stop' : 'play'}
+    </button>
   </div>
 
 </main>
