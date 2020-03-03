@@ -13,7 +13,7 @@
 
   let pfield = getFieldBySize(FIELD_SIZE);
 
-  let isGameStarted = true;
+  let isGameStarted = false;
   let isGameOver = false;
   let isIterationStarted = false;
   let startCoords = { x: 0, y: 0 };
