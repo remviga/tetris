@@ -47,7 +47,8 @@
   const clearRow = i => {
     if (i < 0) return;
     pfield[i] = pfield[i].map(_ => 0);
-  };
+	};
+	
   const clearField = _ => pfield.map((_, i) => clearRow(i));
 
   const drawFigure = ({ figure, x = 0, y = 0 }) => {
@@ -82,48 +83,47 @@
   };
 
   const reduceHeight = (figure = currentFigure) => {
-    iterationTimer = setInterval(_ => {
-      onMove("down");
-    }, speed);
+    iterationTimer = setInterval(_ => onMove("down"), speed);
   };
 
   const dropNewPeiceOfField = figure => {
     let partsInterval = null;
+    let countOfDrawingRows = 1;
+
     isIterationStarted = true;
-    indexOfDrawingRow = 1;
     isDrawingParts = true;
     startCoords = getRandomStartCoords(figure);
     currentFigure = figure;
 
-    const drawInParts = count => {
+    const drawInParts = (count, deadEndCb) => {
       const partialFigure = figure.slice(Math.max(figure.length - count, 0));
+      const isTopRowEmpty = pfield[0].every(c => !c);
+      const drawPartial = _ =>
+        drawFigure({
+          figure: partialFigure,
+          ...startCoords
+        });
+
       if (isDeadEnd(startCoords, partialFigure)) {
-        if (pfield[0].every(c => !c)) {
-          drawFigure({
-            figure: partialFigure,
-            ...startCoords
-          });
-        }
-        clearInterval(partsInterval);
+        if (isTopRowEmpty) drawPartial();
+        deadEndCb();
         setGameOver();
         return;
       }
-      drawFigure({
-        figure: partialFigure,
-        ...startCoords
-      });
+
+      drawPartial();
     };
 
     partsInterval = setInterval(_ => {
-      if (indexOfDrawingRow <= currentFigure.length - 1) {
-        drawInParts(indexOfDrawingRow);
+      if (countOfDrawingRows <= currentFigure.length - 1) {
+        drawInParts(countOfDrawingRows, _ => clearInterval(partsInterval));
       } else {
         isDrawingParts = false;
         clearInterval(partsInterval);
         drawFigure({ figure: currentFigure, ...startCoords });
         reduceHeight(currentFigure);
       }
-      indexOfDrawingRow += 1;
+      countOfDrawingRows += 1;
     }, speed);
   };
 
@@ -163,15 +163,13 @@
         x: x - (figureEdgeIndex - pfieldEdgeIndex)
       };
     }
-    const rotatedFigure = rotateMatrix(currentFigure);
-    clearTempCols();
+    currentFigure = rotateMatrix(currentFigure);
     clearInterval(iterationTimer);
-    reduceHeight(rotatedFigure);
+    reduceHeight(currentFigure);
     drawFigure({
-      figure: rotatedFigure,
+      figure: currentFigure,
       ...startCoords
     });
-    currentFigure = rotatedFigure;
   };
 
   /* check if there are no way to reduce height 
@@ -201,14 +199,13 @@
       });
       return !isLeftEdgeOfField && !isReservedCols;
     };
-    const newCoords = {
+    startCoords = {
       ...startCoords,
       x: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.x - 1
         : startCoords.x
     };
-    drawFigure({ figure: currentFigure, ...newCoords });
-    startCoords = newCoords;
+    drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   const moveRight = _ => {
@@ -222,27 +219,25 @@
       });
       return !isRightEdgeOfField && !isReservedCols;
     };
-    const newCoords = {
+    startCoords = {
       ...startCoords,
       x: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.x + 1
         : startCoords.x
     };
-    drawFigure({ figure: currentFigure, ...newCoords });
-    startCoords = newCoords;
+    drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   const moveDown = _ => {
     const { y } = startCoords;
     const moveIsAllowed = ({ x, y }, f) => y < pfield.length - f.length;
-    const newCoords = {
+    startCoords = {
       ...startCoords,
       y: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.y + 1
         : startCoords.y
     };
-    drawFigure({ figure: currentFigure, ...newCoords });
-    startCoords = newCoords;
+    drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   const clearTempCols = _ => {
@@ -251,17 +246,17 @@
 
   //"move figure" handler
   const onMove = direction => {
-    clearTempCols();
-    if (isDrawingParts && direction === "down") {
-      indexOfDrawingRow += 1;
-      return;
-    }
     const dirs = {
       left: moveLeft,
       right: moveRight,
       down: moveDown
     };
     if (!dirs[direction] || !isIterationStarted) return;
+    if (isDrawingParts && direction === "down") {
+      indexOfDrawingRow += 1;
+      return;
+		}
+		clearTempCols();
     dirs[direction]();
   };
 
