@@ -5,6 +5,7 @@ main {
   text-align: center;
   padding: 1em;
   max-width: 600px;
+  min-width: 320px;
   margin: 0 auto;
 }
 .field {
@@ -31,6 +32,17 @@ main {
   background-color: lightgray;
   border-radius: 3px;
   margin: 5px 0;
+}
+.option button{
+  text-transform: uppercase;
+  margin: 0;
+}
+.option input{
+  margin: 0;
+}
+.option * {
+  line-height: 1;
+  font-weight: 600;
 }
 .row {
   position: relative;
