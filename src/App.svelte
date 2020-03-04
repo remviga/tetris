@@ -47,8 +47,8 @@
   const clearRow = i => {
     if (i < 0) return;
     pfield[i] = pfield[i].map(_ => 0);
-	};
-	
+  };
+
   const clearField = _ => pfield.map((_, i) => clearRow(i));
 
   const drawFigure = ({ figure, x = 0, y = 0 }) => {
@@ -255,8 +255,8 @@
     if (isDrawingParts && direction === "down") {
       indexOfDrawingRow += 1;
       return;
-		}
-		clearTempCols();
+    }
+    clearTempCols();
     dirs[direction]();
   };
 
@@ -305,7 +305,7 @@
 </script>
 
 <main>
-  <article class="field">
+  <article class="field container">
     {#each pfield as row}
       <section class="row">
         {#each row as col}
@@ -319,21 +319,24 @@
       </div>
     {/if}
   </article>
-  <div class="option">
-    <button on:click={_ => onMove('left')}>{'<-'} left</button>
-    <button on:click={onRotate}>rotate</button>
-    <button on:click={_ => onMove('right')}>right {'->'}</button>
+  <div class="container">
+    <div class="option">
+      <button on:click={_ => onMove('left')}>{'<-'} left</button>
+      <button on:click={onRotate}>rotate</button>
+      <button on:click={_ => onMove('right')}>right {'->'}</button>
+    </div>
+    <div class="option speed-option">
+      <label>
+        <span>Speed</span>
+        <input type="range" min="1" max="3" bind:value={speedRatio} />
+        <span>{speedRatio}</span>
+      </label>
+    </div>
+    <div class="option">
+      <button on:click={isGameStarted ? onStop : onStart}>
+        {isGameStarted ? 'stop' : 'play'}
+      </button>
+    </div>
   </div>
-  <div class="option speed-option">
-    <label>
-      <span>Speed</span>
-      <input type="range" min="1" max="3" bind:value={speedRatio} />
-      <span>{speedRatio}</span>
-    </label>
-  </div>
-  <div class="option">
-    <button on:click={isGameStarted ? onStop : onStart}>
-      {isGameStarted ? 'stop' : 'play'}
-    </button>
-  </div>
+
 </main>

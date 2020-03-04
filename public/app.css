@@ -3,7 +3,7 @@
 }
 main {
   text-align: center;
-  padding: 1em;
+  padding: 0;
   max-width: 600px;
   min-width: 320px;
   margin: 0 auto;
@@ -31,6 +31,7 @@ main {
   padding: 10px;
   background-color: lightgray;
   border-radius: 3px;
+  box-sizing: border-box;
   margin: 5px 0;
 }
 .option button{
@@ -43,6 +44,9 @@ main {
 .option * {
   line-height: 1;
   font-weight: 600;
+}
+.container{
+  padding: 12px;
 }
 .row {
   position: relative;
@@ -67,4 +71,10 @@ main {
 }
 .col:last-child {
   margin-right: 0;
+}
+
+@media screen and (max-width: 400px){
+  :root{
+    font-size: 12px;
+  }
 }
