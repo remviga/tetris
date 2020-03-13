@@ -52,8 +52,10 @@
     if (i < 0) return;
     pfield[i] = pfield[i].map(_ => 0);
   };
-
   const clearField = _ => pfield.map((_, i) => clearRow(i));
+  const clearTempCols = _ => {
+    pfield = pfield.map(r => r.map(c => (c && isTempCol(c) ? 0 : c)));
+  };
 
   const drawFigure = ({ figure, x = 0, y = 0 }) => {
     clearTempCols();
@@ -179,7 +181,6 @@
   /* check if there are no way to reduce height 
 	between figure and bottom edge of field */
   const isDeadEnd = (coords, figure = currentFigure) => {
-    
     const hasNotEmptyNextRow = (currentRow, nextFieldRow) =>
       !!nextFieldRow.find(
         (c, ci) => c && !isTempCol(c) && currentRow[ci - coords.x]
@@ -197,7 +198,6 @@
   };
 
   const moveLeft = _ => {
-
     const moveIsAllowed = ({ x, y }, f) => {
       const isLeftEdgeOfField = !x;
       const isReservedCols = f.some((r, ri) => {
@@ -220,7 +220,6 @@
   };
 
   const moveRight = _ => {
-
     const moveIsAllowed = ({ x, y }, f) => {
       const isRightEdgeOfField = x >= pfield.length - f[0].length;
       const isReservedCols = f.some((r, ri) => {
@@ -252,12 +251,8 @@
         ? startCoords.y + 1
         : startCoords.y
     };
-    
-    drawFigure({ figure: currentFigure, ...startCoords });
-  };
 
-  const clearTempCols = _ => {
-    pfield = pfield.map(r => r.map(c => (c && isTempCol(c) ? 0 : c)));
+    drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   //"move figure" handler
