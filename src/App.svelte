@@ -12,6 +12,7 @@
 
   let pfield = getFieldBySize(FIELD_SIZE);
 
+  //game state
   let isGameStarted = false;
   let isGameOver = false;
   let isIterationStarted = false;
@@ -19,10 +20,13 @@
   let speed;
   let currentFigure = [];
   let iterationTimer = null;
+  let speedRatio = 1;
+  //
+
+  //partial drawing variables
   let isDrawingParts = false;
   let indexOfDrawingRow = 1;
-
-  let speedRatio = 1;
+  //
 
   onMount(_ => document.addEventListener("keydown", handleKeyPress));
   onDestroy(_ => document.removeEventListener("keydown", handleKeyPress));
@@ -77,7 +81,7 @@
     };
   };
 
-  // set fixed all completed cols
+  // set fixed all contained cols
   const getSnapshotOfField = _ => {
     return pfield.map(row => row.map(c => (isTempCol(c) ? +c : c)));
   };
@@ -175,20 +179,25 @@
   /* check if there are no way to reduce height 
 	between figure and bottom edge of field */
   const isDeadEnd = (coords, figure = currentFigure) => {
+    
     const hasNotEmptyNextRow = (currentRow, nextFieldRow) =>
       !!nextFieldRow.find(
         (c, ci) => c && !isTempCol(c) && currentRow[ci - coords.x]
       );
+
     const isBottomOfFiled = coords.y >= pfield.length - figure.length;
+
     const isObstruction = figure.some((figureRow, ri) => {
       const nextFieldRow = pfield[coords.y + ri + 1];
       if (!nextFieldRow) return true;
       return hasNotEmptyNextRow(figureRow, nextFieldRow);
     });
+
     return isBottomOfFiled || isObstruction;
   };
 
   const moveLeft = _ => {
+
     const moveIsAllowed = ({ x, y }, f) => {
       const isLeftEdgeOfField = !x;
       const isReservedCols = f.some((r, ri) => {
@@ -199,16 +208,19 @@
       });
       return !isLeftEdgeOfField && !isReservedCols;
     };
+
     startCoords = {
       ...startCoords,
       x: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.x - 1
         : startCoords.x
     };
+
     drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   const moveRight = _ => {
+
     const moveIsAllowed = ({ x, y }, f) => {
       const isRightEdgeOfField = x >= pfield.length - f[0].length;
       const isReservedCols = f.some((r, ri) => {
@@ -219,24 +231,28 @@
       });
       return !isRightEdgeOfField && !isReservedCols;
     };
+
     startCoords = {
       ...startCoords,
       x: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.x + 1
         : startCoords.x
     };
+
     drawFigure({ figure: currentFigure, ...startCoords });
   };
 
   const moveDown = _ => {
     const { y } = startCoords;
     const moveIsAllowed = ({ x, y }, f) => y < pfield.length - f.length;
+
     startCoords = {
       ...startCoords,
       y: moveIsAllowed(startCoords, currentFigure)
         ? startCoords.y + 1
         : startCoords.y
     };
+    
     drawFigure({ figure: currentFigure, ...startCoords });
   };
 

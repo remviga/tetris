@@ -12,7 +12,7 @@ const production = !process.env.ROLLUP_WATCH;
 export default {
   input: "src/main.js",
   output: {
-    sourcemap: true,
+    sourcemap: false,
     format: "iife",
     name: "app",
     file: "public/build/bundle.js"
@@ -26,7 +26,7 @@ export default {
       // a separate file - better for performance
       preprocess: [postcss({ plugins: [require("autoprefixer")] }), scss()],
       css: css => {
-        css.write("public/build/bundle.css");
+        css.write("public/build/bundle.css",false);
       }
     }),
 
